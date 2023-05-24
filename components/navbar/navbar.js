@@ -1,15 +1,31 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./navbar.module.css";
 import { useRouter } from "next/router";
-import Link from "next/link";
 import Image from "next/image";
+import { magic } from "../../lib/magic-client";
 
-const Navbar = (props) => {
-  const { username } = props;
-
+const Navbar = () => {
   const [showDropdown, setShowDropdown] = useState(false);
-
+  const [username, setUsername] = useState("");
+  const [didToken, setDidToken] = useState("");
   const router = useRouter();
+
+  useEffect(() => {
+    const getUsername = async () => {
+      try {
+        const { email, issuer } = await magic.user.getMetadata();
+        const didToken = await magic.user.getIdToken();
+        console.log({ didToken });
+        if (email) {
+          console.log(email);
+          setUsername(email);
+        }
+      } catch (error) {
+        console.log("Error retrieving email:", error);
+      }
+    };
+    getUsername();
+  }, []);
 
   const handleOnClickHome = (e) => {
     e.preventDefault();
@@ -26,16 +42,37 @@ const Navbar = (props) => {
     setShowDropdown(!showDropdown);
   };
 
+  const handleSignOut = async (e) => {
+    e.preventDefault();
+
+    try {
+      const response = await fetch("/api/logout", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${didToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const res = await response.json();
+    } catch (error) {
+      console.error("Error logging out", error);
+      router.push("/login");
+    }
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.wrapper}>
         <a className={styles.logoLink} href="/">
-          <Image
-            src={"/static/netflix.svg"}
-            alt="Netflix logo"
-            width="128"
-            height="34"
-          />
+          <div className={styles.logoWrapper}>
+            <Image
+              src={"/static/netflix.svg"}
+              alt="Netflix logo"
+              width="128"
+              height="34"
+            />
+          </div>
         </a>
         <ul className={styles.navItems}>
           <li className={styles.navItem} onClick={handleOnClickHome}>
@@ -61,14 +98,9 @@ const Navbar = (props) => {
             {showDropdown && (
               <div className={styles.navDropdown}>
                 <div>
-                  <Link
-                    href="/login"
-                    className={styles.linkName}
-                    width="24"
-                    height="24"
-                  >
+                  <a className={styles.linkName} onClick={handleSignOut}>
                     Sign Out
-                  </Link>
+                  </a>
                   <div className={styles.lineWrapper}></div>
                 </div>
               </div>
